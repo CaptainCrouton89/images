@@ -4,6 +4,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import Replicate from "replicate";
+import * as fs from "fs";
+import * as path from "path";
 // Create the MCP server
 const server = new McpServer({
   name: "image-generation",
@@ -45,8 +47,9 @@ server.tool(
     high_noise_frac: z.number().optional().describe("High noise fraction for base/refiner split"),
     apply_watermark: z.boolean().optional().describe("Apply watermark to output"),
     replicate_weights: z.string().optional().describe("Custom weights/checkpoint URL"),
+    save_path: z.string().optional().describe("Relative path to save images (default: 'images')"),
   },
-  async ({ model, prompt, size, width, height, quality, num_inference_steps, guidance_scale, seed, num_outputs, aspect_ratio, output_format, output_quality, disable_safety_checker, scheduler, negative_prompt, strength, image, mask, control_image, lora_scale, refine, high_noise_frac, apply_watermark, replicate_weights }) => {
+  async ({ model, prompt, size, width, height, quality, num_inference_steps, guidance_scale, seed, num_outputs, aspect_ratio, output_format, output_quality, disable_safety_checker, scheduler, negative_prompt, strength, image, mask, control_image, lora_scale, refine, high_noise_frac, apply_watermark, replicate_weights, save_path }) => {
     try {
       // Build input object dynamically based on provided parameters
       const input: any = { prompt };
@@ -183,7 +186,7 @@ server.tool(
       // Run the model
       const output = await replicate.run(model as `${string}/${string}`, { input });
       
-      // Handle different output formats
+      // Handle different output formats and convert URLs to base64
       let imageUrls: string[] = [];
       if (Array.isArray(output)) {
         imageUrls = output.map(item => {
@@ -199,17 +202,65 @@ server.tool(
         imageUrls = [(output as any).url()];
       }
       
+      // Set up save directory
+      const saveDir = save_path || 'images';
+      const fullSaveDir = path.resolve(process.cwd(), saveDir);
+      
+      // Create directory if it doesn't exist
+      if (!fs.existsSync(fullSaveDir)) {
+        fs.mkdirSync(fullSaveDir, { recursive: true });
+      }
+      
+      // Download and save images
+      const savedFiles: string[] = [];
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      
+      for (let i = 0; i < imageUrls.length; i++) {
+        const url = imageUrls[i];
+        try {
+          console.error(`Fetching image from URL: ${url}`);
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          
+          // Generate filename
+          const extension = input.output_format || 'png';
+          const filename = imageUrls.length === 1 
+            ? `image_${timestamp}.${extension}`
+            : `image_${timestamp}_${i + 1}.${extension}`;
+          const filePath = path.join(fullSaveDir, filename);
+          
+          // Save file
+          fs.writeFileSync(filePath, buffer);
+          savedFiles.push(path.relative(process.cwd(), filePath));
+          console.error(`Successfully saved image to: ${filePath}`);
+        } catch (error) {
+          console.error(`Failed to save image from ${url}:`, error);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error saving image: ${error instanceof Error ? error.message : String(error)}`,
+              },
+            ],
+          };
+        }
+      }
+      
+      // Return success message with file paths
+      const successMessage = savedFiles.length === 1
+        ? `Successfully generated and saved 1 image using model: ${model}\nSaved to: ${savedFiles[0]}`
+        : `Successfully generated and saved ${savedFiles.length} images using model: ${model}\nSaved to:\n${savedFiles.map(f => `- ${f}`).join('\n')}`;
+      
       return {
         content: [
           {
             type: "text",
-            text: `Generated ${imageUrls.length} image(s) using model: ${model}`,
+            text: successMessage,
           },
-          ...imageUrls.map(url => ({
-            type: "image" as const,
-            data: url,
-            mimeType: `image/${input.output_format}`,
-          })),
         ],
       };
     } catch (error) {
