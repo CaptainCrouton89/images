@@ -24,7 +24,7 @@ server.tool(
   "Generate an image using various Replicate models",
   {
     model: z.string().describe("The model to use for generation (e.g., 'black-forest-labs/flux-schnell', 'stability-ai/sdxl')"),
-    prompt: z.string().describe("The text prompt describing the image to generate"),
+    prompt: z.union([z.string(), z.array(z.string())]).describe("The text prompt(s) describing the image(s) to generate - can be a single string or array of strings"),
     size: z.string().optional().describe("Image size (e.g., '1024x1024', '512x512')"),
     width: z.number().optional().describe("Image width in pixels"),
     height: z.number().optional().describe("Image height in pixels"),
@@ -52,155 +52,188 @@ server.tool(
   },
   async ({ model, prompt, size, width, height, quality, num_inference_steps, guidance_scale, seed, num_outputs, aspect_ratio, output_format, output_quality, disable_safety_checker, scheduler, negative_prompt, strength, image, mask, control_image, lora_scale, refine, high_noise_frac, apply_watermark, replicate_weights, save_path }) => {
     try {
-      // Build input object dynamically based on provided parameters
-      const input: any = { prompt };
+      // Handle both single prompt and array of prompts
+      const prompts = Array.isArray(prompt) ? prompt : [prompt];
       
-      // Handle size parameter by parsing it into width/height
-      if (size && !width && !height) {
-        const [w, h] = size.split('x').map(Number);
-        if (w && h) {
-          input.width = w;
-          input.height = h;
-        }
-      } else {
-        if (width) input.width = width;
-        if (height) input.height = height;
-      }
-      
-      // Add optional parameters if provided
-      if (quality) input.quality = quality;
-      if (num_inference_steps) input.num_inference_steps = num_inference_steps;
-      if (guidance_scale) input.guidance_scale = guidance_scale;
-      if (seed) input.seed = seed;
-      if (num_outputs) input.num_outputs = num_outputs;
-      if (aspect_ratio) input.aspect_ratio = aspect_ratio;
-      if (output_format) input.output_format = output_format;
-      if (output_quality) input.output_quality = output_quality;
-      if (disable_safety_checker !== undefined) input.disable_safety_checker = disable_safety_checker;
-      if (scheduler) input.scheduler = scheduler;
-      if (negative_prompt) input.negative_prompt = negative_prompt;
-      if (strength) input.strength = strength;
-      if (image) input.image = image;
-      if (mask) input.mask = mask;
-      if (control_image) input.control_image = control_image;
-      if (lora_scale) input.lora_scale = lora_scale;
-      if (refine) input.refine = refine;
-      if (high_noise_frac) input.high_noise_frac = high_noise_frac;
-      if (apply_watermark !== undefined) input.apply_watermark = apply_watermark;
-      if (replicate_weights) input.replicate_weights = replicate_weights;
-      
-      // Set model-specific defaults for common parameters
-      if (model.includes('flux')) {
-        // Flux models (black-forest-labs/flux-schnell, black-forest-labs/flux-dev, etc.)
-        if (!input.num_inference_steps) input.num_inference_steps = 4;
-        if (!input.guidance_scale) input.guidance_scale = 3.5;
-        if (!input.width) input.width = 1024;
-        if (!input.height) input.height = 1024;
-        if (!input.output_format) input.output_format = 'png';
-        if (!input.output_quality) input.output_quality = 90;
-      } else if (model.includes('sdxl') || model.includes('stable-diffusion')) {
-        // SDXL/Stable Diffusion models (stability-ai/sdxl, stability-ai/stable-diffusion, etc.)
-        if (!input.num_inference_steps) input.num_inference_steps = 20;
-        if (!input.guidance_scale) input.guidance_scale = 7.5;
-        if (!input.width) input.width = 1024;
-        if (!input.height) input.height = 1024;
-        if (!input.output_format) input.output_format = 'png';
-        if (!input.output_quality) input.output_quality = 90;
-      } else if (model.includes('midjourney') || model.includes('mj')) {
-        // Midjourney-style models
-        if (!input.width) input.width = 1024;
-        if (!input.height) input.height = 1024;
-        if (!input.output_format) input.output_format = 'png';
-        if (!input.output_quality) input.output_quality = 95;
-      } else if (model.includes('dalle') || model.includes('dall-e')) {
-        // DALL-E style models
-        if (!input.width) input.width = 1024;
-        if (!input.height) input.height = 1024;
-        if (!input.output_format) input.output_format = 'png';
-        if (!input.output_quality) input.output_quality = 90;
-      } else if (model.includes('controlnet')) {
-        // ControlNet models
-        if (!input.num_inference_steps) input.num_inference_steps = 20;
-        if (!input.guidance_scale) input.guidance_scale = 7.5;
-        if (!input.width) input.width = 512;
-        if (!input.height) input.height = 512;
-        if (!input.output_format) input.output_format = 'png';
-        if (!input.output_quality) input.output_quality = 90;
-      } else if (model.includes('kandinsky')) {
-        // Kandinsky models
-        if (!input.num_inference_steps) input.num_inference_steps = 50;
-        if (!input.guidance_scale) input.guidance_scale = 4.0;
-        if (!input.width) input.width = 512;
-        if (!input.height) input.height = 512;
-        if (!input.output_format) input.output_format = 'png';
-        if (!input.output_quality) input.output_quality = 90;
-      } else if (model.includes('dreamshaper') || model.includes('realistic-vision')) {
-        // Community fine-tuned models
-        if (!input.num_inference_steps) input.num_inference_steps = 25;
-        if (!input.guidance_scale) input.guidance_scale = 7.0;
-        if (!input.width) input.width = 512;
-        if (!input.height) input.height = 512;
-        if (!input.output_format) input.output_format = 'png';
-        if (!input.output_quality) input.output_quality = 90;
-      } else if (model.includes('playground') || model.includes('openjourney')) {
-        // Playground AI and OpenJourney models
-        if (!input.num_inference_steps) input.num_inference_steps = 25;
-        if (!input.guidance_scale) input.guidance_scale = 7.0;
-        if (!input.width) input.width = 512;
-        if (!input.height) input.height = 512;
-        if (!input.output_format) input.output_format = 'png';
-        if (!input.output_quality) input.output_quality = 90;
-      } else if (model.includes('waifu') || model.includes('anime')) {
-        // Anime/Waifu models
-        if (!input.num_inference_steps) input.num_inference_steps = 28;
-        if (!input.guidance_scale) input.guidance_scale = 7.0;
-        if (!input.width) input.width = 512;
-        if (!input.height) input.height = 768;
-        if (!input.output_format) input.output_format = 'png';
-        if (!input.output_quality) input.output_quality = 90;
-      } else if (model.includes('lcm') || model.includes('lightning')) {
-        // LCM and Lightning models (fast generation)
-        if (!input.num_inference_steps) input.num_inference_steps = 4;
-        if (!input.guidance_scale) input.guidance_scale = 1.0;
-        if (!input.width) input.width = 1024;
-        if (!input.height) input.height = 1024;
-        if (!input.output_format) input.output_format = 'png';
-        if (!input.output_quality) input.output_quality = 90;
-      } else if (model.includes('protogen') || model.includes('vintedois')) {
-        // Protogen and Vintedois models
-        if (!input.num_inference_steps) input.num_inference_steps = 20;
-        if (!input.guidance_scale) input.guidance_scale = 7.5;
-        if (!input.width) input.width = 512;
-        if (!input.height) input.height = 512;
-        if (!input.output_format) input.output_format = 'png';
-        if (!input.output_quality) input.output_quality = 90;
-      } else {
-        // Default fallbacks for unknown models
-        if (!input.num_inference_steps) input.num_inference_steps = 20;
-        if (!input.guidance_scale) input.guidance_scale = 7.5;
-        if (!input.width) input.width = 512;
-        if (!input.height) input.height = 512;
-        if (!input.output_format) input.output_format = 'png';
-        if (!input.output_quality) input.output_quality = 90;
-      }
-      
-      // Run the model
-      const output = await replicate.run(model as `${string}/${string}`, { input });
-      
-      // Handle different output formats and convert URLs to base64
-      let imageUrls: string[] = [];
-      if (Array.isArray(output)) {
-        imageUrls = output.map(item => {
-          if (typeof item === 'string') return item;
-          if (item && typeof item === 'object' && 'url' in item && typeof item.url === 'function') {
-            return item.url();
+      // Helper function to build input object with defaults
+      const buildInput = (promptText: string) => {
+        const input: any = { prompt: promptText };
+        
+        // Handle size parameter by parsing it into width/height
+        if (size && !width && !height) {
+          const [w, h] = size.split('x').map(Number);
+          if (w && h) {
+            input.width = w;
+            input.height = h;
           }
-          return String(item);
+        } else {
+          if (width) input.width = width;
+          if (height) input.height = height;
+        }
+        
+        // Add optional parameters if provided
+        if (quality) input.quality = quality;
+        if (num_inference_steps) input.num_inference_steps = num_inference_steps;
+        if (guidance_scale) input.guidance_scale = guidance_scale;
+        if (seed) input.seed = seed;
+        if (num_outputs) input.num_outputs = num_outputs;
+        if (aspect_ratio) input.aspect_ratio = aspect_ratio;
+        if (output_format) input.output_format = output_format;
+        if (output_quality) input.output_quality = output_quality;
+        if (disable_safety_checker !== undefined) input.disable_safety_checker = disable_safety_checker;
+        if (scheduler) input.scheduler = scheduler;
+        if (negative_prompt) input.negative_prompt = negative_prompt;
+        if (strength) input.strength = strength;
+        if (image) input.image = image;
+        if (mask) input.mask = mask;
+        if (control_image) input.control_image = control_image;
+        if (lora_scale) input.lora_scale = lora_scale;
+        if (refine) input.refine = refine;
+        if (high_noise_frac) input.high_noise_frac = high_noise_frac;
+        if (apply_watermark !== undefined) input.apply_watermark = apply_watermark;
+        if (replicate_weights) input.replicate_weights = replicate_weights;
+        
+        // Set model-specific defaults for common parameters
+        if (model.includes('flux')) {
+          // Flux models (black-forest-labs/flux-schnell, black-forest-labs/flux-dev, etc.)
+          if (!input.num_inference_steps) input.num_inference_steps = 4;
+          if (!input.guidance_scale) input.guidance_scale = 3.5;
+          if (!input.width) input.width = 1024;
+          if (!input.height) input.height = 1024;
+          if (!input.output_format) input.output_format = 'png';
+          if (!input.output_quality) input.output_quality = 90;
+        } else if (model.includes('sdxl') || model.includes('stable-diffusion')) {
+          // SDXL/Stable Diffusion models (stability-ai/sdxl, stability-ai/stable-diffusion, etc.)
+          if (!input.num_inference_steps) input.num_inference_steps = 20;
+          if (!input.guidance_scale) input.guidance_scale = 7.5;
+          if (!input.width) input.width = 1024;
+          if (!input.height) input.height = 1024;
+          if (!input.output_format) input.output_format = 'png';
+          if (!input.output_quality) input.output_quality = 90;
+        } else if (model.includes('midjourney') || model.includes('mj')) {
+          // Midjourney-style models
+          if (!input.width) input.width = 1024;
+          if (!input.height) input.height = 1024;
+          if (!input.output_format) input.output_format = 'png';
+          if (!input.output_quality) input.output_quality = 95;
+        } else if (model.includes('dalle') || model.includes('dall-e')) {
+          // DALL-E style models
+          if (!input.width) input.width = 1024;
+          if (!input.height) input.height = 1024;
+          if (!input.output_format) input.output_format = 'png';
+          if (!input.output_quality) input.output_quality = 90;
+        } else if (model.includes('controlnet')) {
+          // ControlNet models
+          if (!input.num_inference_steps) input.num_inference_steps = 20;
+          if (!input.guidance_scale) input.guidance_scale = 7.5;
+          if (!input.width) input.width = 512;
+          if (!input.height) input.height = 512;
+          if (!input.output_format) input.output_format = 'png';
+          if (!input.output_quality) input.output_quality = 90;
+        } else if (model.includes('kandinsky')) {
+          // Kandinsky models
+          if (!input.num_inference_steps) input.num_inference_steps = 50;
+          if (!input.guidance_scale) input.guidance_scale = 4.0;
+          if (!input.width) input.width = 512;
+          if (!input.height) input.height = 512;
+          if (!input.output_format) input.output_format = 'png';
+          if (!input.output_quality) input.output_quality = 90;
+        } else if (model.includes('dreamshaper') || model.includes('realistic-vision')) {
+          // Community fine-tuned models
+          if (!input.num_inference_steps) input.num_inference_steps = 25;
+          if (!input.guidance_scale) input.guidance_scale = 7.0;
+          if (!input.width) input.width = 512;
+          if (!input.height) input.height = 512;
+          if (!input.output_format) input.output_format = 'png';
+          if (!input.output_quality) input.output_quality = 90;
+        } else if (model.includes('playground') || model.includes('openjourney')) {
+          // Playground AI and OpenJourney models
+          if (!input.num_inference_steps) input.num_inference_steps = 25;
+          if (!input.guidance_scale) input.guidance_scale = 7.0;
+          if (!input.width) input.width = 512;
+          if (!input.height) input.height = 512;
+          if (!input.output_format) input.output_format = 'png';
+          if (!input.output_quality) input.output_quality = 90;
+        } else if (model.includes('waifu') || model.includes('anime')) {
+          // Anime/Waifu models
+          if (!input.num_inference_steps) input.num_inference_steps = 28;
+          if (!input.guidance_scale) input.guidance_scale = 7.0;
+          if (!input.width) input.width = 512;
+          if (!input.height) input.height = 768;
+          if (!input.output_format) input.output_format = 'png';
+          if (!input.output_quality) input.output_quality = 90;
+        } else if (model.includes('lcm') || model.includes('lightning')) {
+          // LCM and Lightning models (fast generation)
+          if (!input.num_inference_steps) input.num_inference_steps = 4;
+          if (!input.guidance_scale) input.guidance_scale = 1.0;
+          if (!input.width) input.width = 1024;
+          if (!input.height) input.height = 1024;
+          if (!input.output_format) input.output_format = 'png';
+          if (!input.output_quality) input.output_quality = 90;
+        } else if (model.includes('protogen') || model.includes('vintedois')) {
+          // Protogen and Vintedois models
+          if (!input.num_inference_steps) input.num_inference_steps = 20;
+          if (!input.guidance_scale) input.guidance_scale = 7.5;
+          if (!input.width) input.width = 512;
+          if (!input.height) input.height = 512;
+          if (!input.output_format) input.output_format = 'png';
+          if (!input.output_quality) input.output_quality = 90;
+        } else {
+          // Default fallbacks for unknown models
+          if (!input.num_inference_steps) input.num_inference_steps = 20;
+          if (!input.guidance_scale) input.guidance_scale = 7.5;
+          if (!input.width) input.width = 512;
+          if (!input.height) input.height = 512;
+          if (!input.output_format) input.output_format = 'png';
+          if (!input.output_quality) input.output_quality = 90;
+        }
+        
+        return input;
+      };
+      
+      // Run generations in parallel for all prompts
+      const generationPromises = prompts.map(async (promptText, index) => {
+        const input = buildInput(promptText);
+        console.error(`Starting generation ${index + 1}/${prompts.length} for prompt: "${promptText.substring(0, 50)}${promptText.length > 50 ? '...' : ''}"`);
+        
+        try {
+          const output = await replicate.run(model as `${string}/${string}`, { input });
+          return { output, promptText, index };
+        } catch (error) {
+          console.error(`Generation ${index + 1} failed:`, error);
+          throw new Error(`Generation ${index + 1} failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      });
+      
+      // Wait for all generations to complete
+      const results = await Promise.all(generationPromises);
+      
+      // Process all results and extract image URLs
+      const allImageUrls: { url: string; promptText: string; index: number }[] = [];
+      
+      for (const result of results) {
+        const { output, promptText, index } = result;
+        
+        // Handle different output formats
+        let imageUrls: string[] = [];
+        if (Array.isArray(output)) {
+          imageUrls = output.map(item => {
+            if (typeof item === 'string') return item;
+            if (item && typeof item === 'object' && 'url' in item && typeof item.url === 'function') {
+              return item.url();
+            }
+            return String(item);
+          });
+        } else if (typeof output === 'string') {
+          imageUrls = [output];
+        } else if (output && typeof output === 'object' && 'url' in output && typeof (output as any).url === 'function') {
+          imageUrls = [(output as any).url()];
+        }
+        
+        // Add to combined results
+        imageUrls.forEach(url => {
+          allImageUrls.push({ url, promptText, index });
         });
-      } else if (typeof output === 'string') {
-        imageUrls = [output];
-      } else if (output && typeof output === 'object' && 'url' in output && typeof (output as any).url === 'function') {
-        imageUrls = [(output as any).url()];
       }
       
       // Set up save directory
@@ -212,14 +245,13 @@ server.tool(
         fs.mkdirSync(fullSaveDir, { recursive: true });
       }
       
-      // Download and save images
+      // Download and save images in parallel
       const savedFiles: string[] = [];
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       
-      for (let i = 0; i < imageUrls.length; i++) {
-        const url = imageUrls[i];
+      const downloadPromises = allImageUrls.map(async ({ url, promptText, index }, imageIndex) => {
         try {
-          console.error(`Fetching image from URL: ${url}`);
+          console.error(`Downloading image ${imageIndex + 1}/${allImageUrls.length} from URL: ${url}`);
           const response = await fetch(url);
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -228,33 +260,41 @@ server.tool(
           const buffer = Buffer.from(arrayBuffer);
           
           // Generate filename
-          const extension = input.output_format || 'png';
-          const filename = imageUrls.length === 1 
-            ? `image_${timestamp}.${extension}`
-            : `image_${timestamp}_${i + 1}.${extension}`;
+          const extension = buildInput(promptText).output_format || 'png';
+          let filename: string;
+          
+          if (prompts.length === 1 && allImageUrls.length === 1) {
+            filename = `image_${timestamp}.${extension}`;
+          } else if (prompts.length === 1) {
+            filename = `image_${timestamp}_${imageIndex + 1}.${extension}`;
+          } else {
+            filename = `image_${timestamp}_prompt${index + 1}_${imageIndex + 1}.${extension}`;
+          }
+          
           const filePath = path.join(fullSaveDir, filename);
           
           // Save file
           fs.writeFileSync(filePath, buffer);
-          savedFiles.push(path.relative(process.cwd(), filePath));
+          const relativePath = path.relative(process.cwd(), filePath);
           console.error(`Successfully saved image to: ${filePath}`);
+          
+          return relativePath;
         } catch (error) {
-          console.error(`Failed to save image from ${url}:`, error);
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error saving image: ${error instanceof Error ? error.message : String(error)}`,
-              },
-            ],
-          };
+          console.error(`Failed to download image from ${url}:`, error);
+          throw new Error(`Failed to download image: ${error instanceof Error ? error.message : String(error)}`);
         }
-      }
+      });
+      
+      // Wait for all downloads to complete
+      const downloadResults = await Promise.all(downloadPromises);
+      savedFiles.push(...downloadResults);
       
       // Return success message with file paths
-      const successMessage = savedFiles.length === 1
-        ? `Successfully generated and saved 1 image using model: ${model}\nSaved to: ${savedFiles[0]}`
-        : `Successfully generated and saved ${savedFiles.length} images using model: ${model}\nSaved to:\n${savedFiles.map(f => `- ${f}`).join('\n')}`;
+      const successMessage = prompts.length === 1
+        ? (savedFiles.length === 1
+            ? `Successfully generated and saved 1 image using model: ${model}\nSaved to: ${savedFiles[0]}`
+            : `Successfully generated and saved ${savedFiles.length} images using model: ${model}\nSaved to:\n${savedFiles.map(f => `- ${f}`).join('\n')}`)
+        : `Successfully generated and saved ${savedFiles.length} images from ${prompts.length} prompts using model: ${model}\nSaved to:\n${savedFiles.map(f => `- ${f}`).join('\n')}`;
       
       return {
         content: [
@@ -270,7 +310,7 @@ server.tool(
         content: [
           {
             type: "text",
-            text: `Error generating image: ${errorMessage}`,
+            text: `Error generating images: ${errorMessage}`,
           },
         ],
       };
