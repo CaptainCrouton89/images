@@ -1,6 +1,6 @@
-# MCP Server Boilerplate
+# MCP Image Tools Server
 
-A starter template for building MCP (Model Context Protocol) servers. This boilerplate provides a clean foundation for creating your own MCP server that can integrate with Claude, Cursor, or other MCP-compatible AI assistants.
+A comprehensive MCP (Model Context Protocol) server that provides AI image generation and editing capabilities. This server integrates with Claude, Cursor, or other MCP-compatible AI assistants to offer powerful image manipulation tools.
 
 ## Purpose
 

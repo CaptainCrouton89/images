@@ -343,9 +343,13 @@ if (
   console.log("");
   console.log("📖 Usage:");
   console.log(
-    "   You can now use the 'run_parallel_claude_tasks' tool to run multiple"
+    "   You can now use the image tools for AI generation and editing:"
   );
-  console.log("   Claude prompts in parallel with optional file contexts.");
+  console.log("   • generate-image: Create AI images with various models");
+  console.log("   • apply-filter: Add effects like blur, sharpen, brightness");
+  console.log("   • crop-image, resize-image, rotate-image: Edit dimensions");
+  console.log("   • convert-image-format: Convert between formats");
+  console.log("   • get-image-metadata: Extract image information");
 } else {
   console.log("❌ Installation failed for selected applications");
   console.log(
