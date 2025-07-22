@@ -4,7 +4,140 @@ import sharp from "sharp";
 import * as fs from "fs";
 import * as path from "path";
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+
+async function compressImageIfNeeded(inputPath: string): Promise<string> {
+  const stats = fs.statSync(inputPath);
+  
+  if (stats.size <= MAX_FILE_SIZE) {
+    return inputPath;
+  }
+  
+  const compressedPath = inputPath.replace(/(\.[^.]+)$/, "_compressed$1");
+  const image = sharp(inputPath);
+  const metadata = await image.metadata();
+  
+  // Calculate target quality to get under 5MB
+  let quality = 80;
+  let outputBuffer: Buffer;
+  
+  do {
+    outputBuffer = await image
+      .jpeg({ quality })
+      .toBuffer();
+    
+    if (outputBuffer.length <= MAX_FILE_SIZE || quality <= 20) {
+      break;
+    }
+    
+    quality -= 10;
+  } while (quality > 20);
+  
+  // If still too large, resize the image
+  if (outputBuffer.length > MAX_FILE_SIZE && metadata.width && metadata.height) {
+    const scaleFactor = Math.sqrt(MAX_FILE_SIZE / outputBuffer.length);
+    const newWidth = Math.round(metadata.width * scaleFactor);
+    const newHeight = Math.round(metadata.height * scaleFactor);
+    
+    outputBuffer = await sharp(inputPath)
+      .resize(newWidth, newHeight)
+      .jpeg({ quality: 80 })
+      .toBuffer();
+  }
+  
+  fs.writeFileSync(compressedPath, outputBuffer);
+  return compressedPath;
+}
+
 export function registerImageProcessingTools(server: McpServer) {
+  server.tool(
+    "compress-image",
+    "Compress an image to reduce file size (automatically triggered for images over 5MB)",
+    {
+      input_path: z.string().describe("Path to the input image file"),
+      output_path: z.string().optional().describe("Path to save the compressed image (optional)"),
+      max_size_mb: z.number().optional().describe("Maximum file size in MB (default: 5)"),
+      quality: z.number().optional().describe("JPEG quality (1-100, default: 80)"),
+    },
+    async ({ input_path, output_path, max_size_mb, quality }) => {
+      try {
+        if (!fs.existsSync(input_path)) {
+          throw new Error(`Input file not found: ${input_path}`);
+        }
+
+        const maxSize = (max_size_mb || 5) * 1024 * 1024;
+        const stats = fs.statSync(input_path);
+        
+        if (stats.size <= maxSize) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Image is already under ${max_size_mb || 5}MB (${(stats.size / 1024 / 1024).toFixed(2)}MB). No compression needed.`,
+              },
+            ],
+          };
+        }
+
+        const outputPath = output_path || input_path.replace(/(\.[^.]+)$/, "_compressed$1");
+        const image = sharp(input_path);
+        const metadata = await image.metadata();
+        
+        let targetQuality = quality || 80;
+        let outputBuffer: Buffer;
+        
+        do {
+          outputBuffer = await image
+            .jpeg({ quality: targetQuality })
+            .toBuffer();
+          
+          if (outputBuffer.length <= maxSize || targetQuality <= 20) {
+            break;
+          }
+          
+          targetQuality -= 10;
+        } while (targetQuality > 20);
+        
+        // If still too large, resize the image
+        if (outputBuffer.length > maxSize && metadata.width && metadata.height) {
+          const scaleFactor = Math.sqrt(maxSize / outputBuffer.length);
+          const newWidth = Math.round(metadata.width * scaleFactor);
+          const newHeight = Math.round(metadata.height * scaleFactor);
+          
+          outputBuffer = await sharp(input_path)
+            .resize(newWidth, newHeight)
+            .jpeg({ quality: 80 })
+            .toBuffer();
+        }
+        
+        fs.writeFileSync(outputPath, outputBuffer);
+        
+        const originalSizeMB = (stats.size / 1024 / 1024).toFixed(2);
+        const compressedSizeMB = (outputBuffer.length / 1024 / 1024).toFixed(2);
+        const compressionRatio = ((1 - outputBuffer.length / stats.size) * 100).toFixed(1);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Successfully compressed image from ${originalSizeMB}MB to ${compressedSizeMB}MB (${compressionRatio}% reduction). Saved to: ${outputPath}`,
+            },
+          ],
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error compressing image: ${errorMessage}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
   server.tool(
     "apply-filter",
     "Apply various filters to an image (blur, sharpen, brightness, contrast, etc.)",
