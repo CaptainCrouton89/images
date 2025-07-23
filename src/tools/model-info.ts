@@ -69,6 +69,40 @@ const models: Record<string, ModelInfo> = {
     use_cases: ["Rapid prototyping", "Batch generation", "Real-time applications", "Commercial use"]
   },
   
+  "black-forest-labs/flux-1.1-pro": {
+    name: "FLUX.1.1 [pro]",
+    category: "flux",
+    type: "Text-to-Image",
+    description: "Best overall image generation model with state-of-the-art performance",
+    quality: "Very High",
+    speed: "Fast",
+    cost: "Medium",
+    pricing: {
+      per_image: "$0.055",
+      per_second: "$0.0011"
+    },
+    performance: {
+      typical_time: "8-12 seconds",
+      steps: 28,
+      max_resolution: "1024x1024",
+      batch_size: 4
+    },
+    parameters: {
+      prompt: { required: true, type: "string", description: "Text description of the image to generate" },
+      width: { required: false, type: "number", default: 1024, range: "256-1024", description: "Image width" },
+      height: { required: false, type: "number", default: 1024, range: "256-1024", description: "Image height" },
+      num_outputs: { required: false, type: "number", default: 1, range: "1-4", description: "Number of images to generate" },
+      guidance_scale: { required: false, type: "number", default: 3.5, range: "1-20", description: "How closely to follow the prompt" },
+      num_inference_steps: { required: false, type: "number", default: 28, range: "1-50", description: "Number of denoising steps" },
+      seed: { required: false, type: "number", description: "Random seed for reproducibility" },
+      output_format: { required: false, type: "string", default: "webp", options: ["webp", "jpg", "png"], description: "Output format for the generated image" },
+      output_quality: { required: false, type: "number", default: 80, range: "0-100", description: "Output quality for lossy formats" }
+    },
+    strengths: ["State-of-the-art quality", "Excellent prompt following", "Professional grade", "Fast generation"],
+    weaknesses: ["Higher cost than schnell", "Still limited resolution"],
+    use_cases: ["Professional work", "High-quality art", "Commercial projects", "Marketing materials"]
+  },
+  
   "black-forest-labs/flux-dev": {
     name: "FLUX.1 [dev]",
     category: "flux",
@@ -103,11 +137,11 @@ const models: Record<string, ModelInfo> = {
     use_cases: ["Professional work", "High-quality art", "Detailed illustrations", "Marketing materials"]
   },
   
-  "stability-ai/sdxl": {
-    name: "Stable Diffusion XL",
+  "stability-ai/stable-diffusion-3.5-large": {
+    name: "Stable Diffusion 3.5 Large",
     category: "sdxl",
     type: "Text-to-Image",
-    description: "High-resolution image generation with excellent detail and composition",
+    description: "High-resolution image generation with fine details and diverse outputs",
     quality: "High",
     speed: "Medium",
     cost: "Medium",
@@ -129,96 +163,28 @@ const models: Record<string, ModelInfo> = {
       num_outputs: { required: false, type: "number", default: 1, range: "1-4", description: "Number of images to generate" },
       guidance_scale: { required: false, type: "number", default: 7.5, range: "1-20", description: "How closely to follow the prompt" },
       num_inference_steps: { required: false, type: "number", default: 20, range: "1-50", description: "Number of denoising steps" },
-      seed: { required: false, type: "number", description: "Random seed for reproducibility" },
-      refine: { required: false, type: "string", default: "expert_ensemble_refiner", options: ["expert_ensemble_refiner", "base_image_refiner"], description: "Refiner model for enhanced quality" },
-      high_noise_frac: { required: false, type: "number", default: 0.8, range: "0-1", description: "Fraction of noise to use for base model" }
+      seed: { required: false, type: "number", description: "Random seed for reproducibility" }
     },
     strengths: ["High resolution", "Excellent detail", "Good composition", "Wide style range"],
     weaknesses: ["Slower generation", "Higher memory usage", "More expensive"],
     use_cases: ["High-res artwork", "Professional illustrations", "Detailed scenes", "Print materials"]
   },
   
-  "jagilley/controlnet-canny": {
-    name: "ControlNet Canny",
-    category: "controlnet",
-    type: "Controlled Generation",
-    description: "Generate images based on edge detection from input images",
+  "ideogram-ai/ideogram-v3-turbo": {
+    name: "Ideogram v3 Turbo",
+    category: "realistic",
+    type: "Text-to-Image (Text Generation)",
+    description: "Fast image generation with excellent text rendering capabilities",
     quality: "High",
-    speed: "Medium",
-    cost: "Medium",
-    pricing: {
-      per_image: "$0.08",
-      per_second: "$0.0024"
-    },
-    performance: {
-      typical_time: "20-30 seconds",
-      steps: 20,
-      max_resolution: "512x512",
-      batch_size: 1
-    },
-    parameters: {
-      prompt: { required: true, type: "string", description: "Text description of the image to generate" },
-      image: { required: true, type: "string", description: "Input image URL for edge detection" },
-      negative_prompt: { required: false, type: "string", description: "What to avoid in the image" },
-      num_outputs: { required: false, type: "number", default: 1, range: "1-4", description: "Number of images to generate" },
-      guidance_scale: { required: false, type: "number", default: 7.5, range: "1-20", description: "How closely to follow the prompt" },
-      num_inference_steps: { required: false, type: "number", default: 20, range: "1-50", description: "Number of denoising steps" },
-      seed: { required: false, type: "number", description: "Random seed for reproducibility" },
-      controlnet_conditioning_scale: { required: false, type: "number", default: 1.0, range: "0-2", description: "Control strength" }
-    },
-    strengths: ["Precise control", "Maintains structure", "Good for transformations", "Consistent composition"],
-    weaknesses: ["Requires input image", "Limited resolution", "More complex setup"],
-    use_cases: ["Image transformations", "Style transfer", "Architectural visualization", "Product mockups"]
-  },
-  
-  "prompthero/openjourney": {
-    name: "OpenJourney",
-    category: "anime",
-    type: "Text-to-Image (Anime/Artistic)",
-    description: "Midjourney-style artistic image generation",
-    quality: "High",
-    speed: "Medium",
+    speed: "Fast",
     cost: "Low",
     pricing: {
       per_image: "$0.02",
-      per_second: "$0.0006"
-    },
-    performance: {
-      typical_time: "15-20 seconds",
-      steps: 25,
-      max_resolution: "512x512",
-      batch_size: 4
-    },
-    parameters: {
-      prompt: { required: true, type: "string", description: "Text description with artistic style keywords" },
-      negative_prompt: { required: false, type: "string", description: "What to avoid in the image" },
-      width: { required: false, type: "number", default: 512, range: "256-512", description: "Image width" },
-      height: { required: false, type: "number", default: 512, range: "256-512", description: "Image height" },
-      num_outputs: { required: false, type: "number", default: 1, range: "1-4", description: "Number of images to generate" },
-      guidance_scale: { required: false, type: "number", default: 7.0, range: "1-20", description: "How closely to follow the prompt" },
-      num_inference_steps: { required: false, type: "number", default: 25, range: "1-50", description: "Number of denoising steps" },
-      seed: { required: false, type: "number", description: "Random seed for reproducibility" }
-    },
-    strengths: ["Artistic style", "Good for creative work", "Affordable", "Consistent quality"],
-    weaknesses: ["Limited resolution", "Specific art style", "Less photorealistic"],
-    use_cases: ["Artistic illustrations", "Creative projects", "Concept art", "Game assets"]
-  },
-  
-  "bytedance/sdxl-lightning-4step": {
-    name: "SDXL Lightning",
-    category: "fast",
-    type: "Text-to-Image (Fast)",
-    description: "Ultra-fast SDXL variant with 4-step generation",
-    quality: "Medium-High",
-    speed: "Very Fast",
-    cost: "Low",
-    pricing: {
-      per_image: "$0.004",
       per_second: "$0.0008"
     },
     performance: {
-      typical_time: "2-5 seconds",
-      steps: 4,
+      typical_time: "8-12 seconds",
+      steps: 20,
       max_resolution: "1024x1024",
       batch_size: 4
     },
@@ -228,46 +194,106 @@ const models: Record<string, ModelInfo> = {
       width: { required: false, type: "number", default: 1024, range: "512-1024", description: "Image width" },
       height: { required: false, type: "number", default: 1024, range: "512-1024", description: "Image height" },
       num_outputs: { required: false, type: "number", default: 1, range: "1-4", description: "Number of images to generate" },
-      guidance_scale: { required: false, type: "number", default: 1.0, range: "1-3", description: "How closely to follow the prompt" },
-      num_inference_steps: { required: false, type: "number", default: 4, range: "1-8", description: "Number of denoising steps" },
+      guidance_scale: { required: false, type: "number", default: 7.5, range: "1-20", description: "How closely to follow the prompt" },
       seed: { required: false, type: "number", description: "Random seed for reproducibility" }
     },
-    strengths: ["Ultra-fast", "Good quality", "High resolution", "Cost effective"],
-    weaknesses: ["Less fine control", "Limited steps", "Newer model"],
-    use_cases: ["Rapid prototyping", "Real-time generation", "High-volume production", "Interactive applications"]
+    strengths: ["Excellent text rendering", "Fast generation", "Good realism", "Affordable"],
+    weaknesses: ["Less artistic styles", "Newer model", "Limited fine control"],
+    use_cases: ["Text-heavy designs", "Logos", "Marketing materials", "Social media content"]
   },
   
-  "stability-ai/stable-diffusion-2-1": {
-    name: "Stable Diffusion 2.1",
-    category: "realistic",
-    type: "Text-to-Image (Realistic)",
-    description: "Improved version of SD2 with better prompt following and less NSFW content",
-    quality: "Medium-High",
+  "recraft-ai/recraft-v3": {
+    name: "Recraft V3",
+    category: "artistic",
+    type: "Text-to-Image (Artistic)",
+    description: "State-of-the-art artistic image generation with wide style support",
+    quality: "Very High",
     speed: "Medium",
-    cost: "Low",
+    cost: "Medium",
     pricing: {
-      per_image: "$0.018",
-      per_second: "$0.0009"
+      per_image: "$0.04",
+      per_second: "$0.0012"
     },
     performance: {
-      typical_time: "10-15 seconds",
-      steps: 20,
-      max_resolution: "768x768",
+      typical_time: "12-18 seconds",
+      steps: 25,
+      max_resolution: "1024x1024",
+      batch_size: 4
+    },
+    parameters: {
+      prompt: { required: true, type: "string", description: "Text description with style keywords" },
+      negative_prompt: { required: false, type: "string", description: "What to avoid in the image" },
+      width: { required: false, type: "number", default: 1024, range: "512-1024", description: "Image width" },
+      height: { required: false, type: "number", default: 1024, range: "512-1024", description: "Image height" },
+      num_outputs: { required: false, type: "number", default: 1, range: "1-4", description: "Number of images to generate" },
+      guidance_scale: { required: false, type: "number", default: 7.0, range: "1-20", description: "How closely to follow the prompt" },
+      seed: { required: false, type: "number", description: "Random seed for reproducibility" }
+    },
+    strengths: ["Wide style range", "Artistic excellence", "High quality", "Professional grade"],
+    weaknesses: ["Higher cost", "Slower generation", "Complex style control"],
+    use_cases: ["Artistic illustrations", "Creative projects", "Brand design", "Professional artwork"]
+  },
+  
+  "recraft-ai/recraft-v3-svg": {
+    name: "Recraft V3 SVG",
+    category: "artistic",
+    type: "Text-to-SVG",
+    description: "Generate high-quality SVG images including logos and icons",
+    quality: "High",
+    speed: "Medium",
+    cost: "Medium",
+    pricing: {
+      per_image: "$0.04",
+      per_second: "$0.0012"
+    },
+    performance: {
+      typical_time: "12-18 seconds",
+      steps: 25,
+      max_resolution: "1024x1024",
+      batch_size: 4
+    },
+    parameters: {
+      prompt: { required: true, type: "string", description: "Text description of the SVG image to generate" },
+      width: { required: false, type: "number", default: 1024, range: "512-1024", description: "Image width" },
+      height: { required: false, type: "number", default: 1024, range: "512-1024", description: "Image height" },
+      num_outputs: { required: false, type: "number", default: 1, range: "1-4", description: "Number of images to generate" },
+      seed: { required: false, type: "number", description: "Random seed for reproducibility" }
+    },
+    strengths: ["SVG format", "Scalable graphics", "Perfect for logos", "Clean designs"],
+    weaknesses: ["Limited to simple graphics", "No photorealistic output", "Specific use case"],
+    use_cases: ["Logo design", "Icon creation", "Vector graphics", "Scalable illustrations"]
+  },
+  
+  "google/imagen-3": {
+    name: "Google Imagen 3",
+    category: "realistic",
+    type: "Text-to-Image (Photorealistic)",
+    description: "Google's high-quality text-to-image model with excellent realism",
+    quality: "Very High",
+    speed: "Medium",
+    cost: "Medium",
+    pricing: {
+      per_image: "$0.04",
+      per_second: "$0.0015"
+    },
+    performance: {
+      typical_time: "15-20 seconds",
+      steps: 25,
+      max_resolution: "1024x1024",
       batch_size: 4
     },
     parameters: {
       prompt: { required: true, type: "string", description: "Text description of the image to generate" },
       negative_prompt: { required: false, type: "string", description: "What to avoid in the image" },
-      width: { required: false, type: "number", default: 768, range: "512-768", description: "Image width" },
-      height: { required: false, type: "number", default: 768, range: "512-768", description: "Image height" },
+      width: { required: false, type: "number", default: 1024, range: "512-1024", description: "Image width" },
+      height: { required: false, type: "number", default: 1024, range: "512-1024", description: "Image height" },
       num_outputs: { required: false, type: "number", default: 1, range: "1-4", description: "Number of images to generate" },
       guidance_scale: { required: false, type: "number", default: 7.5, range: "1-20", description: "How closely to follow the prompt" },
-      num_inference_steps: { required: false, type: "number", default: 20, range: "1-50", description: "Number of denoising steps" },
       seed: { required: false, type: "number", description: "Random seed for reproducibility" }
     },
-    strengths: ["Realistic images", "Good prompt following", "Affordable", "Reliable"],
-    weaknesses: ["Lower resolution", "Less creative", "Older architecture"],
-    use_cases: ["Realistic portraits", "Photography simulation", "Commercial use", "Educational content"]
+    strengths: ["Photorealistic quality", "Google's technology", "Excellent detail", "Good prompt following"],
+    weaknesses: ["Higher cost", "Slower generation", "Limited availability"],
+    use_cases: ["Photorealistic images", "Professional photography", "Marketing materials", "High-end projects"]
   }
 };
 
