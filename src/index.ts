@@ -6,6 +6,7 @@ import Replicate from "replicate";
 import { registerGenerateImageTool } from "./tools/generate-image.js";
 import { registerImageProcessingTools } from "./tools/image-processing.js";
 import { registerModelInfoTool } from "./tools/model-info.js";
+import { registerImageSearchTools } from "./tools/image-search.js";
 
 const server = new McpServer({
   name: "image-tools",
@@ -19,6 +20,7 @@ const replicate = new Replicate({
 registerGenerateImageTool(server, replicate);
 registerImageProcessingTools(server);
 registerModelInfoTool(server);
+registerImageSearchTools(server);
 
 async function main() {
   try {
